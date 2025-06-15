@@ -215,9 +215,14 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/students", isAuthenticated, async (req, res) => {
   try {
     console.log("Fetching students...");
+    console.log("Session user:", req.session.userId);
 
-    // Use mongoose model to find students
-    const students = await User.find({ role: "student" });
+    const db = mongoose.connection.db;
+    const students = await db
+      .collection("users")
+      .find({ role: "student" })
+      .toArray();
+    console.log("Raw students data:", students);
     console.log("Found students:", students.length);
 
     // Transform the data
@@ -235,10 +240,12 @@ app.get("/api/students", isAuthenticated, async (req, res) => {
       contactInfo: student.contactInfo || {},
     }));
 
+    console.log("Transformed students data:", transformedStudents);
     console.log("Sending students data:", transformedStudents.length);
     res.json(transformedStudents);
   } catch (error) {
     console.error("Error in /api/students:", error);
+    console.error("Error stack:", error.stack);
     res.status(500).json({
       message: "Error fetching students",
       error: error.message,

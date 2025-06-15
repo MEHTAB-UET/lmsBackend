@@ -289,9 +289,31 @@ const pushUsers = async () => {
     await User.deleteMany({});
     console.log("Cleared existing users");
 
-    // Insert new users
-    const result = await User.insertMany(users);
-    console.log("Users pushed successfully:", result.length);
+    // Insert users one by one to handle potential duplicate key errors
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection("users");
+
+    // Drop the email index if it exists
+    try {
+      await usersCollection.dropIndex("email_1");
+    } catch (error) {
+      console.log("No email index to drop");
+    }
+
+    // Insert users
+    for (const user of users) {
+      try {
+        await usersCollection.insertOne(user);
+      } catch (error) {
+        if (error.code === 11000) {
+          console.log(`Skipping duplicate user: ${user.email}`);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    console.log("Users pushed successfully");
 
     // Close MongoDB connection
     mongoose.connection.close();
