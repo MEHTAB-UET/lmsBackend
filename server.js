@@ -2,14 +2,15 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
 const session = require("express-session");
-const { MongoClient, ObjectId } = require("mongodb");
+const { ObjectId } = require("mongodb");
 const mongoose = require("mongoose");
+const Course = require("./models/Course");
+const Program = require("./models/Program");
 const app = express();
 
 // MongoDB connection
 const uri =
   "mongodb+srv://aliirtiza859:Irtizaali859.@irtizacluster.l7kp5.mongodb.net/lms_3";
-const client = new MongoClient(uri);
 
 // CORS configuration
 app.use(
@@ -49,21 +50,19 @@ const isAuthenticated = (req, res, next) => {
 };
 
 // Connect to MongoDB
-async function connectToMongo() {
-  try {
-    await client.connect();
+mongoose
+  .connect(uri)
+  .then(() => {
     console.log("Connected to MongoDB");
-  } catch (error) {
+  })
+  .catch((error) => {
     console.error("MongoDB connection error:", error);
-  }
-}
-
-connectToMongo();
+  });
 
 // Profile endpoint to check session status
 app.get("/api/profile", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const usersCollection = db.collection("users");
 
     const user = await usersCollection.findOne(
@@ -98,7 +97,7 @@ app.post("/api/auth", async (req, res) => {
     const { email, password } = req.body;
     console.log("Login attempt:", { email, password });
 
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const usersCollection = db.collection("users");
 
     // Find user
@@ -144,7 +143,7 @@ app.post("/api/register", async (req, res) => {
     const { name, email, password, role, department, program, semester } =
       req.body;
 
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const usersCollection = db.collection("users");
 
     // Check if user already exists
@@ -207,7 +206,7 @@ app.post("/api/logout", (req, res) => {
 // Get all students
 app.get("/api/students", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const students = await db
       .collection("users")
       .find({ role: "student" })
@@ -224,7 +223,7 @@ app.get("/api/students", isAuthenticated, async (req, res) => {
 // Get single student
 app.get("/api/students/:id", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const student = await db
       .collection("users")
       .findOne(
@@ -249,7 +248,7 @@ app.post("/api/students", isAuthenticated, async (req, res) => {
   try {
     const { name, email, department, program, semester } = req.body;
 
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
 
     // Check if student already exists
     const existingStudent = await db.collection("users").findOne({ email });
@@ -296,7 +295,7 @@ app.put("/api/students/:id", isAuthenticated, async (req, res) => {
   try {
     const { name, email, department, program, semester } = req.body;
 
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
 
     // Check if email is being changed and if it's already in use
     if (email) {
@@ -339,7 +338,7 @@ app.put("/api/students/:id", isAuthenticated, async (req, res) => {
 // Delete student
 app.delete("/api/students/:id", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const result = await db.collection("users").deleteOne({
       _id: new ObjectId(req.params.id),
       role: "student",
@@ -361,7 +360,7 @@ app.delete("/api/students/:id", isAuthenticated, async (req, res) => {
 // Get all faculty members
 app.get("/api/faculty", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const faculty = await db
       .collection("users")
       .find({ role: "faculty" })
@@ -378,7 +377,7 @@ app.get("/api/faculty", isAuthenticated, async (req, res) => {
 // Get single faculty member
 app.get("/api/faculty/:id", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const faculty = await db
       .collection("users")
       .findOne(
@@ -403,7 +402,7 @@ app.post("/api/faculty", isAuthenticated, async (req, res) => {
   try {
     const { name, email, department } = req.body;
 
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
 
     // Check if faculty member already exists
     const existingFaculty = await db.collection("users").findOne({ email });
@@ -449,7 +448,7 @@ app.post("/api/faculty", isAuthenticated, async (req, res) => {
 app.put("/api/faculty/:id", isAuthenticated, async (req, res) => {
   try {
     const { name, email, department } = req.body;
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
 
     // Check if email is being changed and if it's already in use
     const existingFaculty = await db
@@ -488,7 +487,7 @@ app.put("/api/faculty/:id", isAuthenticated, async (req, res) => {
 // Delete faculty member
 app.delete("/api/faculty/:id", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const result = await db
       .collection("users")
       .deleteOne({ _id: new ObjectId(req.params.id), role: "faculty" });
@@ -508,7 +507,7 @@ app.delete("/api/faculty/:id", isAuthenticated, async (req, res) => {
 // Department Management Endpoints
 app.get("/api/departments", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const departments = await db.collection("departments").find().toArray();
     res.json(departments);
   } catch (error) {
@@ -521,7 +520,7 @@ app.get("/api/departments", isAuthenticated, async (req, res) => {
 app.post("/api/departments", isAuthenticated, async (req, res) => {
   try {
     const { name, code, description } = req.body;
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
 
     // Check if department already exists
     const existingDepartment = await db
@@ -554,7 +553,7 @@ app.post("/api/departments", isAuthenticated, async (req, res) => {
 app.put("/api/departments/:id", isAuthenticated, async (req, res) => {
   try {
     const { name, code, description } = req.body;
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
 
     // Check if code is being changed and if it's already in use
     const existingDepartment = await db.collection("departments").findOne({
@@ -593,7 +592,7 @@ app.put("/api/departments/:id", isAuthenticated, async (req, res) => {
 
 app.delete("/api/departments/:id", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
+    const db = mongoose.connection.db;
     const result = await db
       .collection("departments")
       .deleteOne({ _id: new ObjectId(req.params.id) });
@@ -610,32 +609,53 @@ app.delete("/api/departments/:id", isAuthenticated, async (req, res) => {
   }
 });
 
-// Import Course model
-const Course = require("./models/Course");
-
 // Course Management Endpoints
 app.get("/api/courses", isAuthenticated, async (req, res) => {
   try {
     console.log("Fetching courses...");
-    console.log("MongoDB connection state:", mongoose.connection.readyState);
 
+    // Check database connection
     if (mongoose.connection.readyState !== 1) {
-      throw new Error("Database connection is not ready");
+      console.error(
+        "Database not connected. Current state:",
+        mongoose.connection.readyState
+      );
+      return res.status(500).json({ message: "Database connection not ready" });
     }
 
-    const courses = await Course.find()
-      .populate("instructor", "name email")
-      .sort({ createdAt: -1 });
+    // Fetch courses without population first
+    const courses = await Course.find().sort({ createdAt: -1 });
 
-    console.log("Courses fetched successfully:", courses);
-    res.json(courses);
+    // If there are no courses, return empty array
+    if (!courses || courses.length === 0) {
+      return res.json([]);
+    }
+
+    // Try to populate instructor if available
+    const populatedCourses = await Promise.all(
+      courses.map(async (course) => {
+        if (course.instructor) {
+          try {
+            await course.populate("instructor", "name email");
+          } catch (populateError) {
+            console.warn(
+              `Could not populate instructor for course ${course.code}:`,
+              populateError
+            );
+          }
+        }
+        return course;
+      })
+    );
+
+    console.log("Courses fetched successfully:", populatedCourses.length);
+    res.json(populatedCourses);
   } catch (error) {
     console.error("Error fetching courses:", error);
     console.error("Error stack:", error.stack);
     res.status(500).json({
       message: "Error fetching courses",
       error: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 });
@@ -783,105 +803,132 @@ app.delete("/api/courses/:id", isAuthenticated, async (req, res) => {
 // Program Management Endpoints
 app.get("/api/programs", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
-    const programs = await db.collection("programs").find().toArray();
+    console.log("Fetching programs...");
+
+    // Check database connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error(
+        "Database not connected. Current state:",
+        mongoose.connection.readyState
+      );
+      return res.status(500).json({ message: "Database connection not ready" });
+    }
+
+    const programs = await Program.find().sort({ createdAt: -1 });
+    console.log("Programs fetched successfully:", programs.length);
     res.json(programs);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching programs", error: error.message });
+    console.error("Error fetching programs:", error);
+    res.status(500).json({
+      message: "Error fetching programs",
+      error: error.message,
+    });
   }
 });
 
 app.post("/api/programs", isAuthenticated, async (req, res) => {
   try {
     const { name, code, department, duration, description } = req.body;
-    const db = client.db("lms_3");
+    console.log("Creating program with data:", req.body);
 
-    // Check if program already exists
-    const existingProgram = await db.collection("programs").findOne({ code });
-    if (existingProgram) {
-      return res
-        .status(400)
-        .json({ message: "Program with this code already exists" });
+    // Validate required fields
+    if (!name || !code || !department || !duration || !description) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    const program = {
+    // Check if program code already exists
+    const existingProgram = await Program.findOne({ code });
+    if (existingProgram) {
+      return res.status(400).json({ message: "Program code already exists" });
+    }
+
+    const program = new Program({
       name,
       code,
       department,
       duration,
       description,
-      createdAt: new Date(),
-    };
+    });
 
-    const result = await db.collection("programs").insertOne(program);
-    program._id = result.insertedId;
-
+    await program.save();
+    console.log("Program created successfully:", program);
     res.status(201).json(program);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error adding program", error: error.message });
+    console.error("Error creating program:", error);
+    res.status(500).json({
+      message: "Error creating program",
+      error: error.message,
+    });
   }
 });
 
 app.put("/api/programs/:id", isAuthenticated, async (req, res) => {
   try {
-    const { name, code, department, duration, description } = req.body;
-    const db = client.db("lms_3");
+    const { name, code, department, duration, description, isActive } =
+      req.body;
+    const programId = req.params.id;
+    console.log("Updating program:", programId, "with data:", req.body);
 
-    // Check if code is being changed and if it's already in use
-    const existingProgram = await db.collection("programs").findOne({
-      code,
-      _id: { $ne: new ObjectId(req.params.id) },
-    });
-    if (existingProgram) {
-      return res.status(400).json({ message: "Program code already in use" });
+    // Validate required fields
+    if (!name || !code || !department || !duration || !description) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    const result = await db.collection("programs").updateOne(
-      { _id: new ObjectId(req.params.id) },
+    // Check if program code already exists for a different program
+    const existingProgram = await Program.findOne({
+      code,
+      _id: { $ne: programId },
+    });
+    if (existingProgram) {
+      return res.status(400).json({ message: "Program code already exists" });
+    }
+
+    const program = await Program.findByIdAndUpdate(
+      programId,
       {
-        $set: {
-          name,
-          code,
-          department,
-          duration,
-          description,
-          updatedAt: new Date(),
-        },
-      }
+        name,
+        code,
+        department,
+        duration,
+        description,
+        isActive,
+      },
+      { new: true }
     );
 
-    if (result.matchedCount === 0) {
+    if (!program) {
       return res.status(404).json({ message: "Program not found" });
     }
 
-    res.json({ message: "Program updated successfully" });
+    console.log("Program updated successfully:", program);
+    res.json(program);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating program", error: error.message });
+    console.error("Error updating program:", error);
+    res.status(500).json({
+      message: "Error updating program",
+      error: error.message,
+    });
   }
 });
 
 app.delete("/api/programs/:id", isAuthenticated, async (req, res) => {
   try {
-    const db = client.db("lms_3");
-    const result = await db
-      .collection("programs")
-      .deleteOne({ _id: new ObjectId(req.params.id) });
+    const programId = req.params.id;
+    console.log("Deleting program:", programId);
 
-    if (result.deletedCount === 0) {
+    const program = await Program.findByIdAndDelete(programId);
+    if (!program) {
       return res.status(404).json({ message: "Program not found" });
     }
 
+    console.log("Program deleted successfully:", program);
     res.json({ message: "Program deleted successfully" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error deleting program", error: error.message });
+    console.error("Error deleting program:", error);
+    res.status(500).json({
+      message: "Error deleting program",
+      error: error.message,
+    });
   }
 });
 
@@ -890,20 +937,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
-// MongoDB Connection
-mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/lms_3", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    console.log("Connected to MongoDB");
-  })
-  .catch((error) => {
-    console.error("MongoDB connection error:", error);
-    process.exit(1);
-  });
 
 // Handle MongoDB connection events
 mongoose.connection.on("connected", () => {

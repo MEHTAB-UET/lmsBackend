@@ -187,10 +187,13 @@ const courses = [
 
 // Connect to MongoDB
 mongoose
-  .connect("mongodb://localhost:27017/lms_3", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(
+    "mongodb+srv://aliirtiza859:Irtizaali859.@irtizacluster.l7kp5.mongodb.net/lms_3",
+    {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }
+  )
   .then(async () => {
     console.log("Connected to MongoDB");
 
