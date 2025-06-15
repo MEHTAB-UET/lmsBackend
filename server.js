@@ -101,8 +101,10 @@ app.post("/api/auth", async (req, res) => {
     const db = mongoose.connection.db;
     const usersCollection = db.collection("users");
 
-    // Find user
-    const user = await usersCollection.findOne({ email });
+    // Find user - convert email to lowercase for case-insensitive comparison
+    const user = await usersCollection.findOne({
+      email: { $regex: new RegExp(`^${email}$`, "i") },
+    });
     if (!user) {
       console.log("User not found:", email);
       return res.status(400).json({ message: "User not found" });
@@ -147,8 +149,10 @@ app.post("/api/register", async (req, res) => {
     const db = mongoose.connection.db;
     const usersCollection = db.collection("users");
 
-    // Check if user already exists
-    const existingUser = await usersCollection.findOne({ email });
+    // Check if user already exists - case insensitive
+    const existingUser = await usersCollection.findOne({
+      email: { $regex: new RegExp(`^${email}$`, "i") },
+    });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
@@ -157,10 +161,10 @@ app.post("/api/register", async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new user
+    // Create new user - store email in lowercase
     const user = {
       name,
-      email,
+      email: email.toLowerCase(),
       password: hashedPassword,
       role,
       department,

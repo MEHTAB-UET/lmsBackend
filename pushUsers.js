@@ -7,10 +7,15 @@ const uri =
 
 // Helper function to write to credentials file
 function writeToCredentialsFile(data) {
+  // Write to timestamped file
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `user_credentials_${timestamp}.txt`;
   fs.writeFileSync(filename, data);
   console.log(`Credentials written to ${filename}`);
+
+  // Also write to static Credentials.txt
+  fs.writeFileSync("Credentials.txt", data);
+  console.log("Credentials also written to Credentials.txt");
 }
 
 async function createInitialUsers() {
@@ -30,10 +35,10 @@ async function createInitialUsers() {
 
     // Create admin user
     const adminSalt = await bcrypt.genSalt(10);
-    const adminHashedPassword = await bcrypt.hash("Alpha23", adminSalt);
+    const adminHashedPassword = await bcrypt.hash("Password@12", adminSalt);
 
     const admin = {
-      email: "waqas@UVAS.admn.edu.pk",
+      email: "waqas@UVAS.admin.edu.pk".toLowerCase(),
       password: adminHashedPassword,
       role: "admin",
       name: "Waqas",
@@ -44,7 +49,7 @@ async function createInitialUsers() {
     await usersCollection.insertOne(admin);
     credentialsData += "=== Admin User ===\n";
     credentialsData += `Email: ${admin.email}\n`;
-    credentialsData += `Password: Alpha23\n`;
+    credentialsData += `Password: Password@12\n`;
     credentialsData += `Role: ${admin.role}\n`;
     credentialsData += `Department: ${admin.department}\n\n`;
 
@@ -86,7 +91,7 @@ async function createInitialUsers() {
       const hashedPassword = await bcrypt.hash(password, salt);
 
       const faculty = {
-        email: `faculty${i + 1}@UVAS.faculty.edu.pk`,
+        email: `faculty${i + 1}@UVAS.faculty.edu.pk`.toLowerCase(),
         password: hashedPassword,
         role: "faculty",
         name: facultyNames[i],
@@ -125,18 +130,38 @@ async function createInitialUsers() {
       "Sara Ali",
       "Imran Malik",
       "Nida Khan",
+      "Kamran Ali",
+      "Sadia Khan",
+      "Waqar Malik",
+      "Hina Ahmed",
+      "Usama Khan",
+      "Ayesha Malik",
+      "Bilal Ali",
+      "Zainab Khan",
+      "Hamza Malik",
+      "Mariam Ali",
+      "Faisal Khan",
+      "Hina Malik",
+      "Omar Ahmed",
+      "Layla Ali",
+      "Rayyan Khan",
+      "Zara Ahmed",
+      "Ahmed Malik",
+      "Sara Khan",
+      "Imran Ali",
+      "Nida Malik",
     ];
     const programs = ["BS Computer Science"];
     const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
 
     credentialsData += "\n\n=== Students ===\n";
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 40; i++) {
       const salt = await bcrypt.genSalt(10);
       const password = `Student${i + 1}@2024`;
       const hashedPassword = await bcrypt.hash(password, salt);
 
       const student = {
-        email: `student${i + 1}@UVAS.student.edu.pk`,
+        email: `student${i + 1}@UVAS.student.edu.pk`.toLowerCase(),
         password: hashedPassword,
         role: "student",
         name: studentNames[i],
