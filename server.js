@@ -6,6 +6,7 @@ const { ObjectId } = require("mongodb");
 const mongoose = require("mongoose");
 const Course = require("./models/Course");
 const Program = require("./models/Program");
+const Admission = require("./models/Admission");
 const app = express();
 
 // MongoDB connection
@@ -927,6 +928,195 @@ app.delete("/api/programs/:id", isAuthenticated, async (req, res) => {
     console.error("Error deleting program:", error);
     res.status(500).json({
       message: "Error deleting program",
+      error: error.message,
+    });
+  }
+});
+
+// Admission Management Endpoints
+app.get("/api/admissions", isAuthenticated, async (req, res) => {
+  try {
+    console.log("Fetching admissions...");
+
+    if (mongoose.connection.readyState !== 1) {
+      console.error(
+        "Database not connected. Current state:",
+        mongoose.connection.readyState
+      );
+      return res.status(500).json({ message: "Database connection not ready" });
+    }
+
+    const admissions = await Admission.find()
+      .populate("program", "name code")
+      .sort({ createdAt: -1 });
+
+    console.log("Admissions fetched successfully:", admissions.length);
+    res.json(admissions);
+  } catch (error) {
+    console.error("Error fetching admissions:", error);
+    res.status(500).json({
+      message: "Error fetching admissions",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/admissions", isAuthenticated, async (req, res) => {
+  try {
+    const {
+      studentId,
+      firstName,
+      lastName,
+      email,
+      phone,
+      program,
+      documents,
+      address,
+      comments,
+    } = req.body;
+
+    console.log("Creating admission with data:", req.body);
+
+    // Validate required fields
+    if (
+      !studentId ||
+      !firstName ||
+      !lastName ||
+      !email ||
+      !phone ||
+      !program ||
+      !documents ||
+      !address
+    ) {
+      return res
+        .status(400)
+        .json({ message: "All required fields must be provided" });
+    }
+
+    // Check if student ID or email already exists
+    const existingAdmission = await Admission.findOne({
+      $or: [{ studentId }, { email }],
+    });
+
+    if (existingAdmission) {
+      return res.status(400).json({
+        message: "Student ID or email already exists",
+      });
+    }
+
+    const admission = new Admission({
+      studentId,
+      firstName,
+      lastName,
+      email,
+      phone,
+      program,
+      documents,
+      address,
+      comments,
+    });
+
+    await admission.save();
+    console.log("Admission created successfully:", admission);
+    res.status(201).json(admission);
+  } catch (error) {
+    console.error("Error creating admission:", error);
+    res.status(500).json({
+      message: "Error creating admission",
+      error: error.message,
+    });
+  }
+});
+
+app.put("/api/admissions/:id", isAuthenticated, async (req, res) => {
+  try {
+    const admissionId = req.params.id;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      program,
+      status,
+      documents,
+      address,
+      comments,
+    } = req.body;
+
+    console.log("Updating admission:", admissionId, "with data:", req.body);
+
+    // Validate required fields
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !phone ||
+      !program ||
+      !documents ||
+      !address
+    ) {
+      return res
+        .status(400)
+        .json({ message: "All required fields must be provided" });
+    }
+
+    // Check if email already exists for a different admission
+    const existingAdmission = await Admission.findOne({
+      email,
+      _id: { $ne: admissionId },
+    });
+
+    if (existingAdmission) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
+    const admission = await Admission.findByIdAndUpdate(
+      admissionId,
+      {
+        firstName,
+        lastName,
+        email,
+        phone,
+        program,
+        status,
+        documents,
+        address,
+        comments,
+      },
+      { new: true }
+    ).populate("program", "name code");
+
+    if (!admission) {
+      return res.status(404).json({ message: "Admission not found" });
+    }
+
+    console.log("Admission updated successfully:", admission);
+    res.json(admission);
+  } catch (error) {
+    console.error("Error updating admission:", error);
+    res.status(500).json({
+      message: "Error updating admission",
+      error: error.message,
+    });
+  }
+});
+
+app.delete("/api/admissions/:id", isAuthenticated, async (req, res) => {
+  try {
+    const admissionId = req.params.id;
+    console.log("Deleting admission:", admissionId);
+
+    const admission = await Admission.findByIdAndDelete(admissionId);
+    if (!admission) {
+      return res.status(404).json({ message: "Admission not found" });
+    }
+
+    console.log("Admission deleted successfully:", admission);
+    res.json({ message: "Admission deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting admission:", error);
+    res.status(500).json({
+      message: "Error deleting admission",
       error: error.message,
     });
   }
