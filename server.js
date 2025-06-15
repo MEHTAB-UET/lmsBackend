@@ -31,16 +31,28 @@ app.use(express.json());
 app.use(
   session({
     secret: "your-secret-key",
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-      secure: false, // Set to true in production with HTTPS
+      secure: false, // Set to true if using HTTPS
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: "lax",
       httpOnly: true,
     },
+    name: "sessionId", // Custom session cookie name
   })
 );
+
+// Add session debugging middleware
+app.use((req, res, next) => {
+  console.log("=== Session Debug ===");
+  console.log("Session ID:", req.session.id);
+  console.log("Session Data:", {
+    userId: req.session.userId,
+    role: req.session.role,
+  });
+  next();
+});
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req, res, next) => {
@@ -100,7 +112,7 @@ app.get("/api/profile", isAuthenticated, async (req, res) => {
 app.post("/api/auth", async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("Login attempt:", { email, password });
+    console.log("Login attempt:", { email });
 
     const db = mongoose.connection.db;
     const usersCollection = db.collection("users");
@@ -109,6 +121,19 @@ app.post("/api/auth", async (req, res) => {
     const user = await usersCollection.findOne({
       email: { $regex: new RegExp(`^${email}$`, "i") },
     });
+
+    console.log(
+      "Found user:",
+      user
+        ? {
+            _id: user._id,
+            name: user.name,
+            role: user.role,
+            email: user.email,
+          }
+        : "No user found"
+    );
+
     if (!user) {
       console.log("User not found:", email);
       return res.status(400).json({ message: "User not found" });
@@ -120,25 +145,44 @@ app.post("/api/auth", async (req, res) => {
       return res.status(400).json({ message: "Invalid password" });
     }
 
-    // Set session
-    req.session.userId = user._id.toString(); // Convert ObjectId to string
-    req.session.role = user.role; // Store role in session
+    // Convert ObjectId to string for session
+    const userId = user._id.toString();
+    console.log("Setting session with userId:", userId);
 
-    console.log("Login successful for:", email);
-    res.json({
-      message: "Logged in successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        program: user.program,
-        semester: user.semester,
-      },
+    // Set session
+    req.session.userId = userId;
+    req.session.role = user.role;
+
+    // Save session explicitly
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error saving session:", err);
+        return res.status(500).json({ message: "Error saving session" });
+      }
+
+      console.log("Login successful for:", email);
+      console.log("Session after login:", {
+        id: req.session.id,
+        userId: req.session.userId,
+        role: req.session.role,
+      });
+
+      res.json({
+        message: "Logged in successfully",
+        user: {
+          id: userId,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          department: user.department,
+          program: user.program,
+          semester: user.semester,
+        },
+      });
     });
   } catch (error) {
     console.error("Login error:", error);
+    console.error("Error stack:", error.stack);
     res.status(500).json({ message: "Error logging in", error: error.message });
   }
 });
@@ -429,6 +473,74 @@ app.get("/api/faculty/:id", isAuthenticated, async (req, res) => {
       .json({ message: "Error fetching faculty member", error: error.message });
   }
 });
+
+// Get faculty member's assigned courses
+app.get(
+  "/api/faculty/:facultyId/assigned-courses",
+  isAuthenticated,
+  async (req, res) => {
+    try {
+      console.log("=== Assigned Courses Endpoint ===");
+      console.log("Faculty ID from URL:", req.params.facultyId);
+      console.log("Session data:", req.session);
+
+      // Convert string ID to ObjectId
+      let facultyId;
+      try {
+        facultyId = new ObjectId(req.params.facultyId);
+        console.log("Converted facultyId:", facultyId);
+      } catch (error) {
+        console.error("Error converting ID to ObjectId:", error);
+        return res.status(400).json({ message: "Invalid faculty ID format" });
+      }
+
+      // Use the User model to find the faculty member
+      const faculty = await User.findById(facultyId);
+      console.log("Database query result:", faculty);
+
+      if (!faculty) {
+        console.log("Faculty not found in database");
+        return res.status(404).json({ message: "Faculty member not found" });
+      }
+
+      if (faculty.role !== "faculty") {
+        console.log("User is not a faculty member, role:", faculty.role);
+        return res.status(403).json({ message: "Not authorized as faculty" });
+      }
+
+      console.log("Found faculty:", {
+        name: faculty.name,
+        department: faculty.department,
+        assignedCoursesCount: faculty.assignedCourses
+          ? faculty.assignedCourses.length
+          : 0,
+      });
+
+      // Return faculty info and assigned courses
+      res.json({
+        facultyName: faculty.name,
+        department: faculty.department,
+        designation: faculty.designation,
+        assignedCourses: faculty.assignedCourses || [],
+      });
+    } catch (error) {
+      console.error(
+        "Error in /api/faculty/:facultyId/assigned-courses:",
+        error
+      );
+      console.error("Error stack:", error.stack);
+      console.error("Error details:", {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+      });
+      res.status(500).json({
+        message: "Error fetching assigned courses",
+        error: error.message,
+      });
+    }
+  }
+);
 
 // Add new faculty member
 app.post("/api/faculty", isAuthenticated, async (req, res) => {

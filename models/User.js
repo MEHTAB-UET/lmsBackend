@@ -24,6 +24,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: "active",
   },
+  // Faculty specific fields
+  designation: String,
+  qualification: String,
+  assignedCourses: [
+    {
+      courseCode: String,
+      courseName: String,
+      credits: Number,
+      semester: Number,
+    },
+  ],
+  // Student specific fields
   enrolledCourses: [
     {
       courseCode: String,
