@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const Course = require("./models/Course");
 const Program = require("./models/Program");
 const Admission = require("./models/Admission");
+const User = require("./models/User");
 const app = express();
 
 // MongoDB connection
@@ -52,12 +53,15 @@ const isAuthenticated = (req, res, next) => {
 
 // Connect to MongoDB
 mongoose
-  .connect(uri)
-  .then(() => {
-    console.log("Connected to MongoDB");
+  .connect(uri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
   })
-  .catch((error) => {
-    console.error("MongoDB connection error:", error);
+  .then(() => {
+    console.log("Connected to MongoDB Atlas");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
   });
 
 // Profile endpoint to check session status
@@ -110,9 +114,8 @@ app.post("/api/auth", async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // Verify password
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
+    // Compare plain text passwords
+    if (password !== user.password) {
       console.log("Invalid password for user:", email);
       return res.status(400).json({ message: "Invalid password" });
     }
@@ -211,17 +214,35 @@ app.post("/api/logout", (req, res) => {
 // Get all students
 app.get("/api/students", isAuthenticated, async (req, res) => {
   try {
-    const db = mongoose.connection.db;
-    const students = await db
-      .collection("users")
-      .find({ role: "student" })
-      .project({ password: 0 }) // Exclude password from response
-      .toArray();
-    res.json(students);
+    console.log("Fetching students...");
+
+    // Use mongoose model to find students
+    const students = await User.find({ role: "student" });
+    console.log("Found students:", students.length);
+
+    // Transform the data
+    const transformedStudents = students.map((student) => ({
+      _id: student._id.toString(),
+      name: student.name,
+      email: student.email,
+      department: student.department,
+      program: student.program,
+      semester: student.semester,
+      cgpa: student.cgpa,
+      enrollmentDate: student.enrollmentDate,
+      status: student.status,
+      enrolledCourses: student.enrolledCourses || [],
+      contactInfo: student.contactInfo || {},
+    }));
+
+    console.log("Sending students data:", transformedStudents.length);
+    res.json(transformedStudents);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching students", error: error.message });
+    console.error("Error in /api/students:", error);
+    res.status(500).json({
+      message: "Error fetching students",
+      error: error.message,
+    });
   }
 });
 
